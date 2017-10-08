@@ -1,0 +1,43 @@
+ES6 标准 提高效率
+对象拷贝 Object.assign()
+默认参数 function hello(txt='hello'){}
+字符串模板 var name = 'moe'; var txt = 'hello ${name}';
+解构赋值
+箭头函数
+Set和Map
+异步操作
+类与对象
+模块化
+
+源码 Vue.js - ES6 Elment D3
+业务 Vue react angular 都和ES6相关
+
+ES6本身浏览器是不支持的，构建一套支持ES6环境
+
+基础架构
+业务逻辑-页面+交互
+自动构建-编译+辅助-自动刷新+文件合并+资源压缩
+服务接口-数据+接口
+编译工具 babel webpack  webpack-stream（对gulp的支持）
+任务自动化 gulp
+
+app-前端代码 css js/class-类目录 views-模板html目录
+server-服务器
+express -e .    ejs模板引擎
+tasks-构建工具
+文件合并 脚本编译 模板更新 
+
+package.json 项目依赖包
+.babelrc  babel配置文件
+gulpfile.babel.js gulp配置文件
+
+npm install gulp gulp-if gulp-concat webpack webpack-stream vinyl-named gulp-livereload gulp-plumber gulp-rename gulp-uglify gulp-util yargs gulp-live-server del --save-dev
+scripts.js pages.js css.js server.js browser.js clean.js build.js default.js
+npm install babel-loader babel-core babel-preset-env babel-preset-es2015 require-dir --save-dev
+npm install gulp-sequence babel-preset-es2015 require-dir connect-livereload --save-dev
+ 中间出现的问题：
+ 1、tasks/scripts.js中 loader:'babel'改成loader:'babel-loader'  //新版的webpack不允许缩写，所以需要写完整 
+ 2、args.watch得不到 tasks/util/args.js最后加上export default args; 
+ 3、app.js  中 热更新  app.use(require('connect-livereload')());  最下面加上 module.exports = app;
+
+ 
