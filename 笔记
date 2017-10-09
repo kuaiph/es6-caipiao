@@ -31,13 +31,600 @@ package.json 项目依赖包
 .babelrc  babel配置文件
 gulpfile.babel.js gulp配置文件
 
+tasks开发环境配置 scripts.js pages.js css.js server.js browser.js clean.js build.js default.js
+
+安装依赖：
 npm install gulp gulp-if gulp-concat webpack webpack-stream vinyl-named gulp-livereload gulp-plumber gulp-rename gulp-uglify gulp-util yargs gulp-live-server del --save-dev
-scripts.js pages.js css.js server.js browser.js clean.js build.js default.js
+
 npm install babel-loader babel-core babel-preset-env babel-preset-es2015 require-dir --save-dev
+
 npm install gulp-sequence babel-preset-es2015 require-dir connect-livereload --save-dev
+
+具体步骤：
+1.es6下创建三个目录
+app server tasks
+
+2.在 app下 创建
+css js views
+
+3.进入app/js目录
+创建index.js（js入口文件）
+4.进入app/views
+创建(注：ejs是一个模板引擎，在node中需要启动)
+error.ejs
+index.ejs
+
+5.进入到 es6/server/
+使用node的脚手架express
+启动脚手架 表示启用ejs模板引擎
+express -e .
+执行npm install
+
+6.进入到es6/tasks
+创建util（防止一些常用的脚本的）
+初始化 tasks/util/args.js
+
+7.在项目根目录
+使用npm init (创建 package.json 依赖包文件（配置依赖）)
+
+8.创建设置babel 编译工具配置文件
+ es6/.babelrc
+
+9.创建gulp的构建文件
+es6/gulpfile.babel.js
+
+10.编辑 tasks/util/args.js
+
+  import yargs from 'yargs';
+
+  const args = yargs
+//区分开发环境或者线上环境（gulp -production）
+  .option('production',{
+  boolean:true,
+  default:false,
+  describe:'min all scripts'
+  })
+//设置要不要自动编译
+  .option('watch',{
+  boolean:true,
+  default:false,
+  describe:'watch all files'
+  })
+//设置是否需要输出编译日志
+  .option('verbose',{
+  boolean:true,
+  default:false,
+  describe:'log'
+  })
+//处理压缩的
+  .option('sourcemaps',{
+  describe:'force the creation of sroucemaps'
+  })
+//设置服务的端口
+  .option('port',{
+  string:true,
+  default:8080,
+  describe:'server port'
+  })
+//表示名两行输入的上述内容以字符串进行解析
+  .argv
+
+  export default args;
+
+11.创建构建脚本tasks/scripts.js
+
+  import gulp from 'gulp';//引入gup
+  import gulpif from 'gulp-if';//gulp的语句中处理if判断的包
+  import concat from 'gulp-concat';//处理文件拼接的
+  import webpack from 'webpack';//打包的
+  import gulpWebpack from 'webpack-stream';//和webpack配合使用的
+  import named from 'vinyl-named';//对文件重命名处理包
+  import livereload from 'gulp-livereload';//热更新包即浏览器不刷新自动更新的
+  import plumber from 'gulp-plumber';//处理文件信息流的包
+  import rename from 'gulp-rename';//对文件重命名的包
+  import uglify from 'gulp-uglify';//处理js css 压缩的包
+  import {log,colors} from 'gulp-util';//命令行输出的包
+  import args from './util/args';//命令行参数进行解析的包
+
+进入es6/
+安装scripts.js 中的依赖包用空格隔开
+npm install gulp gulp-if gulp-concat webpack webpack-stream vinyl-named gulp-livereload gulp-plumber gulp-rename gulp-uglify gulp-util yargs --save-dev
+gulp-live-server gulp-util del gulp-sequence --save-dev(表示安装后写入package.js配置)
+
+12.创建处理模板的脚本
+  tasks/pages.js
+  import gulp from 'gulp';
+  import gulpif from 'gulp-if';
+  import livereload from 'gulp-livereload';
+  import args from './util/args';
+
+
+  //创建一个pages任务
+  gulp.task('pages',()=>{
+  return gulp.src('app/**/*.ejs')//表示app嵌套目录下所有模板
+  .pipe(gulp.dest('server'))//把末班文件原封不动的copy到server目录下
+  .pipe(gulpif(args.watch,livereload()))//监听是不是热更新
+  })
+13.
+创建处理css的脚本
+  import gulp from 'gulp';
+  import gulpif from 'gulp-if';
+  import livereload from 'gulp-livereload';
+  import args from './util/args';
+
+  gulp.task('css',()=>{
+  return gulp.src('app/**/*.css')
+  .pipe(gulp.dest('server/public'))//把末班文件原封不动的copy到server/public目录下
+
+  })
+
+
+14.创建处理服务器的构建脚本tasks/server.js
+  import gulp from 'gulp';
+  import gulpif from 'gulp-if';
+  import liveserver from 'gulp-live-server';
+  import args from './util/args';
+//创建服务的任务
+  gulp.task('serve',(cb)=>{//如果不是监听的使用回调函数
+  if(!args.watch) return cb();
+//如果是监听的创建一个服务器，运行server/bin/www.js
+  var server = liveserver.new(['--harmony','server/bin/www']);
+  server.start();//启动服务器
+//监听server/public/js  /css
+  gulp.watch(['server/public/**/*.js','server/views/**/*.ejs'],function(file){
+  server.notify.apply(server,[file]);//通知服务器做相应的反应
+  })
+//监听到路由变化后是服务重启
+  gulp.watch(['server/routes/**/*.js','server/app.js'],function(){
+  server.start.bind(server)()
+  });
+  })
+
+15.创建浏览器监听并自动编译的脚本tasks/browser.js
+  import gulp from 'gulp';
+  import gulpif from 'gulp-if';
+  import gutil from 'gulp-util';
+  import args from './util/args';
+//创建任务
+  gulp.task('browser',(cb)=>{
+  if(!args.watch) return cb();
+  gulp.watch('app/**/*.js',['scripts']);//监听js 启动scripts.js
+  gulp.watch('app/**/*.ejs',['pages']);...
+  gulp.watch('app/**/*.css',['css']);...
+  });
+16.创建编译文件清除的脚本（当每次文件修改时进行旧的文件清除）
+  import gulp from 'gulp';
+  import del from 'del';
+  import args from './util/args';
+//创建晴空任务
+  gulp.task('clean',()=>{
+  return del(['server/public','server/views'])
+  })
+
+17.创建任务关联起来的脚本tasks/build.js
+  import gulp from 'gulp';
+  import gulpSequence from 'gulp-sequence';//任务之间的关联关系
+
+  gulp.task('build',gulpSequence('clean','css','pages','scripts',['browser','serve']));
+
+18.创建 tasks default.js
+
+  import gulp from 'gulp';
+
+  gulp.task('default',['build']);
+
+19.运行处理
+报错
+[18:10:18] Failed to load external module babel-register
+[18:10:18] Failed to load external module babel-core/register
+[18:10:18] Failed to load external module babel/register
+[18:10:18] Using gulpfile D:\wnmp\www\es6\gulpfile.babel.js
+[18:10:19] Task 'default' is not in your gulpfile
+[18:10:19] Please check the documentation for proper gulpfile formatting
+
+解决前三个是安装包没有安装
+解决安装
+babel-loader babel-core babel-preset-env webpack
+
+后一个是没有发现gulpfile文件，创建的是gulpfile.babel.js
+解决
+在 es6/gulpfile.babel.js下写入并安装require-dir包
+import requireDir from 'require-dir';
+
+requireDir('./tasks');
+
+配置 .babelrc 如下 同时安装依赖包 babel-preset-es2015
+{
+"presets":["es2015"]
+}
+
+报错
+安装依赖包
+gulp-sequence
+
+运行 gulp --watch 自动编译
+实现热更新 在server/app.js 大概23行
+在app.use(express.static(path.join(__dirname, 'public')));后添加
+app.use(require('connect-livereload')());
+ctrl+c停止服务
+安装依赖
+npm install connect-livereload --save-dev
+
+执行 gulp --watch
+
  中间出现的问题：
  1、tasks/scripts.js中 loader:'babel'改成loader:'babel-loader'  //新版的webpack不允许缩写，所以需要写完整 
  2、args.watch得不到 tasks/util/args.js最后加上export default args; 
  3、app.js  中 热更新  app.use(require('connect-livereload')());  最下面加上 module.exports = app;
 
- 
+
+ES6学习笔记2 ES6语法
+1、let和const
+let只作用在块级作用域   且不能重复声明
+ES6强制开启严格模式（ES5中 "use strict";） 变量未声明不能引用 否则会报引用错误
+
+const声明一个常量 不能修改 声明时必须赋值 声明引用类型时其属性可以修改 但其存储空间的指针是不变的
+
+2、解构赋值
+数组解构赋值 (默认值直接赋a=3)
+[a, b] = [1, 2];
+[a, b, c] = [1, 2];  c会是undefined
+[a,b,...c] = [1,2,3,4,5,6];
+作用：
+用于变量的交换
+[a,b] = [b,a];
+用于获取函数返回
+function f(){
+  return [1,2];
+}
+[a,b] = f();
+用于获得返回的某几个值
+function f(){
+  return [1,2,3,4,5];
+}
+[a,,,b] = f();
+用于获取某一部分和剩下的
+[a,...b] = f();
+对象解构赋值 
+({a,b}={a:1,b:2});
+作用：
+let metaData={
+  title: 'abc',
+  test:[{
+    title: 'test',
+    desc: 'description'
+  }]
+}
+let {title:esTitle,test[{title:cnTitle}]} = metaData;
+console.log(esTitle,cnTitle);
+
+3、正则扩展
+新增特性：构造函数的变化 
+ES5中的写法：
+let regex = new RegExp('xyz','i');
+let regex2 = new RegExp(/xyz/i);
+regex.test('xyz123')   // true
+ES6：
+let regex3 = new RegExp(/xyz/ig,'i');
+ES6中允许第二个参数再去覆盖前面正则表达式所用到的修饰符
+regex3.flags 获取修饰符  // i
+a1.exec(s); 匹配字符串
+u修饰符
+正则表达式unicode编码时加u修饰符才识别，匹配的字符超过两个字节时，要加u 当成一个字符 
+y修饰符 
+和g都是全局匹配，g会从上一次匹配的位置继续寻找到匹配到的字符，而y需要从上一次匹配的位置开始，第一个字符就匹配上
+a.sticky  true说明开启了y修饰符
+s修饰符（提案）
+ 回车 换行等
+
+4、字符串扩展
+npm install babel-polyfill --save-dev
+安装ES7提案补丁库
+新增特性：Unicode表示法
+`\u0061`  //a
+超过4位时 会分开 所以要用大括号包起来 `\u{20BB7}`
+let s = '𠮷a'
+s.charCodeAt(0); //取2个字节
+s.codePointAt(0).toString(16); // ES6 取4个字节
+String.fromCharCode("0x20BB7");
+String.fromCodePoint("0x20BB7"); //ES6 可正确处理
+遍历接口
+let s = '𠮷abc';
+for(let code of str){
+  console.log(code);
+}
+模板字符串
+let name = "list";
+let info = "hello world";
+let m = `i am ${name}, ${info}`;
+标签模板
+let user = {
+  name: 'list',
+  info: 'hello world'
+};
+abc`i am ${user.name},${user.info}`;
+function abc(s,v1,v2){
+  console.log(s,v1,v2);
+}
+多语言转换、防止XSS攻击
+新增方法
+let str = 'string';
+str.includes("c");
+str.startsWith('str');
+str.endsWith('ng');
+str.repeat(2);
+String.raw`Hi\n${1+2}`; //\n换行符不生效 对所有\进行了转义
+ES7提案
+console.log('1'.padStart(4,'0')); 补白 如日期等 padEnd(4,'0')往后补
+
+5、数值扩展
+新增特性：
+0b 表示二进制 0o表示8进制
+API：
+Number.isFinite 是否有尽 NaN false 分母为0 false
+Number.isNaN  true 非数值
+Number.isInteger  判断是否整数 25.0 true 
+Number.MAX_SAFE_INTEGER  常量 2的53次方 有效存储范围
+Number.MIN_SAFE_INTEGER  常量 -2的53次方 
+Number.isSafeInteger  是否有效范围内
+Math.trunc 只取整数部分
+Math.sign  -1 0 1 判断正负0 NaN非数字
+Math.cbrt  立方根
+方法调整 移到Number对象上了 但用法相同
+
+6、数组扩展
+let arr = Array.of(3,4,5,6);
+let p = document.querySelectorAll('div');//集合 而非数组 NodeList
+let pArr = Array.from(p);
+console.log(Array.from([1,3,5],function(item){return item*2;}));
+[1,'a',3].fill(7);  全部变7
+['a','b','c'].fill(7,1,3) 从1起到3，之间的替换7
+['1','c','ks'].keys()  下标数组
+['1','c','ks'].values()  值数组 //有兼容性问题
+for(let [index,value] of ['1','c','ks'].entries())
+[1,2,3,4,5].find(function(item){return item>3;});
+[1,2,3,4,5].findIndex(function(item){return item>3;});
+[1,2,3,4,5].includes(1);
+
+7、函数扩展
+参数默认值
+在参数部分直接赋值 function test(x,y=3){} 有默认值的参数后不能再加没默认值的参数
+作用域
+function test2(x,y=x){}
+
+rest参数
+function test3(...arg){ //参数转换成数组 没有ES5中arguments第一个元素的问题
+  for(let v of arg) console.log(v);
+}
+console.log('a',...[1,2,3,4]); ...把数组转换为离散的值
+
+箭头函数
+let arrow = v => v*2;
+let arrow2 = () => 5;
+多个语句或者返回对象时{}  ({})
+this绑定
+箭头函数this绑定的是定义时的对象 而ES5中是函数被调用时的对象
+
+尾调用 函数式编程 能够提升性能
+function tail(x){
+  console.log(x);
+}
+function fx(x){
+  return tail(x);
+}
+
+8、对象扩展
+简洁表示法
+let a = 'b';
+let es6 = {
+  o,    //  o: o
+  k,     //  k: k
+  hello(){
+    console.log('hello');
+  },
+  [a]:'c'  // b:'c'
+}
+
+新增API
+Object.is('abc','abc')  是否相等 和===没区别
+Object.is([], [])  引用类型 地址不同
+Object.assign({a:'a'},{b:'b'}); 浅拷贝
+Object.entries();
+
+9、Symbol的用法
+新增的数据类型 提供一个独一无二的值
+let a1 = Symbol();
+let a2 = Symbol();
+console.log(a1===a2); false
+let a3 = Symbol.for('a3');
+let a4 = Symbol.for('a3');
+console.log(a3===a4); true
+
+作用
+let a1 = Symbol.for('abc');
+let obj = {
+  [a1]: '123',
+  'abc': 345,
+  'c': 456
+}
+注意此时for in 和 let of 都取不到[a1]属性的值
+Object.getOwnPropertySymbols(obj).forEach(function(item){
+  console.log(obj[item]);
+}); 得到一个数组 就可以forEach
+Reflect.ownKeys(obj).forEach(function(item){
+  console.log(item,obj[item]);
+}); 
+
+10、set-map数据结构 丰富了数据结构可以利用的模型
+Set 当中的元素必须是唯一的 可用于去重
+let arr = [1,2,3,1,2];
+let list = new Set(arr);
+add()方法增加元素 size属性元素个数
+set在转换元素的时候不会做数据类型的转换 如2和'2'可以同时出现
+delete() 删除元素 clear() 清空 has() 是否有
+遍历 keys() values() entries() forEach()
+
+WeakSet
+支持的数据类型和Set不一样 只能是对象 都是弱引用 不跟垃圾回收机制挂钩 只把地址拿过来，不考虑是否被回收了
+没有size属性 没有clear方法 不能遍历
+
+Map 任何数据类型都可以作为key
+let map = new Map([['a',123],['b',456]]);
+map.set()添加元素 key,value
+map.get(key) 得到value
+map.delete('a') 删除元素  clear()清空   遍历和set一样
+
+WeakMap
+key值必须是对象
+没有size属性  不能用clear  不能遍历
+
+set-map和数组和对象比较 横向对比 增删改查
+map.set('t',1) array.push({t:1})
+map.delete('t') let index = array.findIndex(item => item.t); array.splice(index,1);
+map.set 改变值 array.forEach(item => item.t? item.t=2:'');
+map.has('t') array.find(item => item.t) array返回的是元素
+
+set.add({t:1}) array.push({t:1})  数组的操作不变
+set.delete() 配合forEach进行删除
+改 set和数组一样 forEach
+set.has({t:1}) //要把对象保存为变量才可以查询到
+
+map.set('t',1)  set.add(item)  obj['t']=1 对象比较
+map.delete('t') set.delete(item) delete obj['t']
+map.set('t',2) item.t=2  obj['t'] = 2
+map.has('t') set.has(item)  't' in obj
+
+整个数据开发过程中 优先考虑能使用map不使用数组
+考虑数据唯一性则考虑set 
+
+11、Proxy 和 Reflect 代理和反射
+Proxy连接了用户和最底层的对象 Reflect反射Object
+这两个对象的方法是一样的
+let obj = {
+  time: '2017-10-09',
+  name: 'net',
+  _r: 123
+};
+let monitor = new Proxy(obj, {
+//拦截对象属性的读取
+  get(target, key){ //读取到的日期2017变为2018
+    return target[key].replace('2017','2018');
+  },
+  //拦截对象属性的设置
+  set(target,key,value){//仅可改变name
+    if(key==='name'){
+      return target[key] = value;
+    }
+    else{
+      return target[key];
+    }
+  },
+  //拦截key in object操作
+  has(target,key){//仅name可以读到
+    if(key==='name'){
+      return target[key];
+    }
+    else{
+      return false;
+    }
+  },
+  //拦截delete操作
+  deleteProperty(target,key){//仅可删除_r
+    if(key.indexOf('_')>-1){
+      delete target[key];
+      return true;
+    }
+    else{
+      return target[key];
+    }
+  },
+  //拦截Object.keys,Object.getOwnPropertySymbols,Object.getOwnPropertyNames
+  ownKeys(target){ //保护time属性
+    return Object.keys(target).filter(item => item != 'time');
+  }
+});
+console.log(monitor.time);
+用户对monitor进行操作 最后通过Proxy反应到obj
+代理的层面根据不同的业务逻辑做相应的处理
+
+Reflect.get(obj,'time');
+Reflect.set(obj,'name','Nero');
+
+作用
+function validator(target,validator){
+  return new Proxy(target,{
+    _validator:validator,
+    set(target,key,value,proxy){
+      if(target.hasOwnProperty(key)){
+        let va = this._validator[key];
+        if(!!va(value)){
+          return Reflect.set(target,key,value,proxy);
+        }else{
+          throw Error(`不能设置${key}到${value}`);
+        }
+      }else{
+        throw Error(`${key} 不存在`);
+      }
+    }
+  });
+}
+
+const personValidators = {
+  name(val){
+    return typeof val === 'string';
+  },
+  age(val){
+    return typeof val === 'number' && val>18;
+  }
+}
+
+class Person{
+  constructor(name,age){
+    this.name = name;
+    this.age = age;
+    return validator(this,personValidators);//返回的是一个实例的代理
+  }
+}
+
+const person = new Person('Nero',23);
+console.log(person);
+通过代理把条件和对象本身业务逻辑完全隔离开 代码健壮性复用性更强
+
+12、类和对象
+
+13、Promise
+
+14、Iterator和for of循环 
+
+15、Generator
+
+16、Decorators 修饰器
+
+
+17、模块化 国外requirejs 国内seajs 
+ES6模块引入 import 模块导出 export
+export let A=123;
+export function test(){
+  console.log('test');
+};
+export class Hello{
+  test(){
+    console.log('class');
+  }
+}
+
+import {A,test,Hello} from './class/lesson17';
+太多时 import * as lesson from './class/lesson17';
+console.log(lesson.A,lesson.test);
+命名可能重复时
+export default {
+  A,
+  test,
+  Hello
+}
+
+
+
+
+
+
